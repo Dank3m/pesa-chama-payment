@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.0</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.tablebanking</groupId>
+    <artifactId>payment-service</artifactId>
+    <version>1.0.0</version>
+    <description>Payment Microservice for Table Banking System - Family Bank Integration</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <!-- Spring Boot 4.0.0 manages most versions automatically -->
+        <!-- Override only if needed for security patches -->
+        <springdoc-openapi.version>3.0.0</springdoc-openapi.version>
+    </properties>
+
+    <dependencies>
+        <!-- ==================== Spring Boot Starters ==================== -->
+        <!-- Spring Boot 4 uses modular starters -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- WebFlux for reactive HTTP client (WebClient) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <!-- ==================== Kafka ==================== -->
+        <!-- Spring Kafka 4.0.0 is managed by Spring Boot 4 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
+
+        <!-- ==================== Database ==================== -->
+        <!-- PostgreSQL driver - version managed by Spring Boot 4 -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Flyway - Spring Boot 4 requires using the starter instead of flyway-core -->
+        <!-- This automatically includes flyway-core and proper auto-configuration -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+
+        <!-- Flyway PostgreSQL support -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- ==================== Redis ==================== -->
+        <!-- For caching tokens and idempotency checks -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- ==================== Resilience ==================== -->
+        <!--
+            NOTE: Spring Boot 4 removed dependency management for spring-retry.
+            Spring Framework 7 now has BUILT-IN retry support via @Retryable.
+
+            Option 1: Use Spring Framework 7's built-in retry (RECOMMENDED)
+                      - Just add spring-boot-starter-aop
+                      - Use @EnableResilientMethods and @Retryable from org.springframework.core.retry
+
+            Option 2: Keep using spring-retry with explicit version (shown below)
+        -->
+
+        <!-- Option 2: Legacy spring-retry with explicit version -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+            <version>2.0.12</version>
+        </dependency>
+
+        <!-- ==================== Developer Tools ==================== -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ==================== JSON Processing ==================== -->
+        <!-- Jackson 3.0 is managed by Spring Boot 4 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <!-- ==================== API Documentation ==================== -->
+        <!-- springdoc-openapi 3.0.0 for Spring Boot 4 compatibility -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc-openapi.version}</version>
+        </dependency>
+
+        <!-- ==================== Test Dependencies ==================== -->
+        <!-- Spring Boot 4 uses modular test starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                    <!-- Enable CDS for faster startup (Spring Boot 4 feature) -->
+                    <image>
+                        <env>
+                            <BP_JVM_CDS_ENABLED>true</BP_JVM_CDS_ENABLED>
+                        </env>
+                    </image>
+                </configuration>
+            </plugin>
+
+            <!-- Compiler plugin with null-safety support (JSpecify) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <parameters>true</parameters>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Optional: Enable virtual threads for better scalability -->
+    <!-- Uncomment if running on Java 21+ with virtual thread support -->
+    <!--
+    <profiles>
+        <profile>
+            <id>virtual-threads</id>
+            <properties>
+                <spring.threads.virtual.enabled>true</spring.threads.virtual.enabled>
+            </properties>
+        </profile>
+    </profiles>
+    -->
+</project>

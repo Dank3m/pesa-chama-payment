@@ -1,0 +1,140 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: payment-service
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:payments}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    defer-datasource-initialization: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: payment-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.tablebanking.payment.dto,com.tablebanking.payment.event
+    listener:
+      concurrency: 3
+      ack-mode: manual
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 5000ms
+
+# Family Bank API Configuration
+familybank:
+  # OAuth Token Endpoint
+  auth:
+    token-url: ${FBL_AUTH_URL:https://sandbox.familybank.co.ke:1045/connect/token}
+    
+  # Collections API (IPN - we expose endpoints for FBL to call)
+  collections:
+    client-id: ${FBL_COLLECTIONS_CLIENT_ID:}
+    client-secret: ${FBL_COLLECTIONS_CLIENT_SECRET:}
+    scope: FBL_COLLECTIONS
+    # Our collection account at Family Bank
+    collection-account: ${FBL_COLLECTION_ACCOUNT:}
+  
+  # Mass Payments API (Disbursements - we call FBL)
+  payments:
+    base-url: ${FBL_PAYMENTS_URL:https://sandbox.familybank.co.ke:1044}
+    client-id: ${FBL_PAYMENTS_CLIENT_ID:}
+    client-secret: ${FBL_PAYMENTS_CLIENT_SECRET:}
+    scope: OB_BULK_PAY
+    # Our debit account for disbursements
+    debit-account: ${FBL_DEBIT_ACCOUNT:}
+    sender-bank: ${FBL_SENDER_BANK:TABLE BANKING CHAMA}
+    sender-branch: ${FBL_SENDER_BRANCH:HEAD OFFICE}
+  
+  # Token cache TTL (slightly less than actual expiry for safety)
+  token-cache-ttl: 3500
+
+# Payment Processing Configuration
+payment:
+  # Allocation order when receiving payments
+  allocation:
+    # Priority: 1 = Contribution first, 2 = Loan
+    contribution-priority: 1
+    loan-priority: 2
+  
+  # Idempotency
+  idempotency:
+    enabled: true
+    ttl-hours: 24
+  
+  # Retry configuration
+  retry:
+    max-attempts: 3
+    initial-interval: 1000
+    multiplier: 2.0
+    max-interval: 10000
+
+# Kafka Topics
+kafka:
+  topics:
+    payment-events: payment-events
+    contribution-events: contribution-events
+    loan-events: loan-events
+    disbursement-events: disbursement-events
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.tablebanking.payment: DEBUG
+    org.springframework.web.reactive: DEBUG
+    reactor.netty.http.client: DEBUG
+
+# OpenAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
