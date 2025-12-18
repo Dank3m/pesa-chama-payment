@@ -132,8 +132,10 @@ public class PaymentProcessingService {
 
         try {
             // Look up member by customer_id (which is our member UUID)
-            MemberInfo memberInfo = memberLookupService.findMemberById(
-                    UUID.fromString(payload.getCustomerId()));
+//            MemberInfo memberInfo = memberLookupService.findMemberById(
+//                    UUID.fromString(payload.getCustomerId()));
+
+            MemberInfo memberInfo = memberLookupService.findMember(request.getPayload().getCustomerId(), "");
 
             if (memberInfo == null) {
                 log.error("Member not found for payment: customerId={}", payload.getCustomerId());
