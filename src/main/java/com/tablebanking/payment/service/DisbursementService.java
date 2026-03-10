@@ -1,5 +1,6 @@
 package com.tablebanking.payment.service;
 
+import com.tablebanking.payment.client.DarajaB2CClient;
 import com.tablebanking.payment.client.FamilyBankApiClient;
 import com.tablebanking.payment.dto.*;
 import com.tablebanking.payment.entity.*;
@@ -36,6 +37,7 @@ public class DisbursementService {
     private final DisbursementBatchRepository batchRepository;
     private final DisbursementRepository disbursementRepository;
     private final FamilyBankApiClient familyBankApiClient;
+    private final DarajaB2CClient darajaB2CClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${familybank.payments.debit-account}")
@@ -109,8 +111,12 @@ public class DisbursementService {
 
         log.info("Disbursement created: batchRef={}, paymentRef={}", batchRef, paymentRef);
 
-        // Submit to Family Bank asynchronously
-        submitToFamilyBankAsync(batch);
+        // Route to appropriate payment channel
+        if ("MPESA".equalsIgnoreCase(request.getPaymentType())) {
+            submitToDarajaB2CAsync(batch);
+        } else {
+            submitToFamilyBankAsync(batch);
+        }
 
         return DisbursementResult.builder()
                 .disbursementId(disbursement.getId())
@@ -214,6 +220,65 @@ public class DisbursementService {
                     batch.getBatchRef(), e.getMessage());
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Submit batch to Daraja B2C API asynchronously (for M-Pesa disbursements)
+     */
+    @Async
+    public CompletableFuture<Void> submitToDarajaB2CAsync(DisbursementBatch batch) {
+        try {
+            submitToDarajaB2C(batch);
+        } catch (Exception e) {
+            log.error("Failed to submit batch to Daraja B2C: batchRef={}, error={}",
+                    batch.getBatchRef(), e.getMessage());
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Submit each disbursement in batch to Daraja B2C
+     */
+    @Transactional
+    public void submitToDarajaB2C(DisbursementBatch batch) {
+        log.info("Submitting batch to Daraja B2C: batchRef={}", batch.getBatchRef());
+
+        batch.setStatus(BatchStatus.QUEUED);
+        batch.setSubmittedAt(Instant.now());
+        batchRepository.save(batch);
+
+        for (Disbursement disbursement : batch.getDisbursements()) {
+            try {
+                DarajaB2CClient.B2CResponse response = darajaB2CClient.sendB2CPayment(
+                        disbursement.getAmount(),
+                        disbursement.getBeneficiaryAccount(), // phone number for M-Pesa
+                        disbursement.getRemarks(),
+                        disbursement.getPaymentRef() // Use paymentRef as OriginatorConversationID
+                );
+
+                if (response != null && "0".equals(response.getResponseCode())) {
+                    disbursement.setStatus(DisbursementStatus.QUEUED);
+                    disbursement.setExternalRef(response.getConversationID());
+                    disbursement.setStatusDescription(response.getResponseDescription());
+                } else {
+                    disbursement.setStatus(DisbursementStatus.FAILED);
+                    disbursement.setStatusDescription(response != null ? response.getResponseDescription() : "No response");
+                    publishDisbursementFailureEvents(batch, disbursement.getStatusDescription());
+                }
+                disbursementRepository.save(disbursement);
+
+            } catch (Exception e) {
+                log.error("Failed to send B2C payment: paymentRef={}, error={}",
+                        disbursement.getPaymentRef(), e.getMessage());
+                disbursement.setStatus(DisbursementStatus.FAILED);
+                disbursement.setStatusDescription(e.getMessage());
+                disbursementRepository.save(disbursement);
+                publishDisbursementFailureEvents(batch, e.getMessage());
+            }
+        }
+
+        // Don't publish success events here - wait for Daraja callback
+        log.info("Batch submitted to Daraja B2C: batchRef={}", batch.getBatchRef());
     }
 
     /**
