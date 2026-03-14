@@ -6,9 +6,9 @@ spring:
     name: payment-service
   
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:payments}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -42,7 +42,7 @@ spring:
       properties:
         enable.idempotence: true
     consumer:
-      group-id: payment-service-group
+      group-id: pesa-chama-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -85,6 +85,27 @@ familybank:
   
   # Token cache TTL (slightly less than actual expiry for safety)
   token-cache-ttl: 3500
+
+# Daraja (Safaricom M-Pesa) B2C Configuration
+daraja:
+  auth:
+    url: ${DARAJA_AUTH_URL:https://sandbox.safaricom.co.ke/oauth/v1/generate}
+  consumer-key: ${DARAJA_CONSUMER_KEY:}
+  consumer-secret: ${DARAJA_CONSUMER_SECRET:}
+  b2c:
+    url: ${DARAJA_B2C_URL:https://sandbox.safaricom.co.ke/mpesa/b2c/v3/paymentrequest}
+    initiator-name: ${DARAJA_B2C_INITIATOR:}
+    security-credential: ${DARAJA_B2C_SECURITY_CREDENTIAL:}
+    command-id: BusinessPayment
+    party-a: ${DARAJA_B2C_SHORTCODE:}
+    queue-timeout-url: ${DARAJA_B2C_TIMEOUT_URL:}
+    result-url: ${DARAJA_B2C_RESULT_URL:}
+  stk:
+    url: ${DARAJA_STK_URL:https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest}
+    query-url: ${DARAJA_STK_QUERY_URL:https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query}
+    business-short-code: ${DARAJA_STK_SHORTCODE:174379}
+    passkey: ${DARAJA_STK_PASSKEY:}
+    callback-url: ${DARAJA_STK_CALLBACK_URL:}
 
 # Payment Processing Configuration
 payment:
